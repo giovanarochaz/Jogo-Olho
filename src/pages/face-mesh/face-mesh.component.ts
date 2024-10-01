@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, Inject, PLATFO
 import { Camera } from '@mediapipe/camera_utils';
 import { BlinkDetectionService } from '../../service/BlinkDetectionService';
 import { isPlatformBrowser } from '@angular/common';
+import { FaceMesh } from '@mediapipe/face_mesh';
 
 @Component({
   selector: 'app-face-mesh',
@@ -41,6 +42,9 @@ export class FaceMeshComponent implements OnInit, AfterViewInit {
     this.faceMesh = new FaceMesh({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
     });
+
+    console.log(this.faceMesh);
+
 
     this.faceMesh.setOptions({
       maxNumFaces: 1,
