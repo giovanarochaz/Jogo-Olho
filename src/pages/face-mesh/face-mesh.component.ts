@@ -33,6 +33,8 @@ export class FaceMeshComponent implements OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.initializeFaceMesh();
+      console.log('this.platformId',this.platformId);
+
     }
   }
 
@@ -43,7 +45,7 @@ export class FaceMeshComponent implements OnInit, AfterViewInit {
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
     });
 
-    console.log(this.faceMesh);
+    console.log('teste',this.faceMesh);
 
 
     this.faceMesh.setOptions({
