@@ -1,5 +1,4 @@
-<div class="container">
-    <video #videoElement playsinline style="display:none;"></video>
-    <canvas #canvasElement width="640" height="480"></canvas>
-  </div>
-  
+<div class="floating-help" (mousedown)="startDrag($event)">
+  <video #videoElement playsinline style="display:none;"></video>
+  <canvas #canvasElement width="640" height="480"></canvas>
+</div>

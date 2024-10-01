@@ -1,12 +1,27 @@
-.container {
-    position: relative;
-    width: 640px;
-    height: 480px;
-  }
-  
-  canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
-  
+.floating-help {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 300px;
+  height: 200px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 850;
+  cursor: grab; /* Muda o cursor para indicar que pode ser arrastado */
+}
+
+.floating-help:active {
+  cursor: grabbing; /* Muda o cursor quando está sendo arrastado */
+}
+
+canvas {
+  border-radius: 8px; /* arredondado */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* sombra no canvas */
+  width: 100%; /* faz o canvas preencher o contêiner */
+  height: auto; /* ajusta a altura automaticamente */
+}

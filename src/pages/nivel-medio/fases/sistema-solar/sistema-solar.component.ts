@@ -1,9 +1,6 @@
-import { Component, ElementRef, Inject, PLATFORM_ID, AfterViewInit, Renderer2, HostListener, ViewChild } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { Component, ElementRef, Inject, PLATFORM_ID, AfterViewInit, Renderer2, HostListener, ViewChild, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../../service/blink-events';
-import { Camera } from '@mediapipe/camera_utils';
-import { FaceMesh } from '@mediapipe/face_mesh';
 import { BlinkDetectionService } from '../../../../service/BlinkDetectionService';
 
 @Component({
@@ -11,28 +8,15 @@ import { BlinkDetectionService } from '../../../../service/BlinkDetectionService
   standalone: true,
   imports: [],
   templateUrl: './sistema-solar.component.html',
-  styleUrl: './sistema-solar.component.scss'
+  styleUrls: ['./sistema-solar.component.scss']
 })
-export class SistemaSolarComponent implements AfterViewInit {
-  @ViewChild('videoElement') videoElement!: ElementRef;
-  @ViewChild('canvasElement') canvasElement!: ElementRef;
+export class SistemaSolarComponent implements OnInit {
+  @ViewChild('gameContainer', { static: true }) gameContainer!: ElementRef<HTMLElement>;
 
-  private faceMesh!: FaceMesh;
-  private camera!: Camera;
-
-  // Other properties...
   personagem: HTMLElement | null = null;
-  gameContainer: HTMLElement | null = null;
   coracoes: HTMLElement[] = [];
   vidas: number = 5;
   planetasColetados: HTMLElement | null = null;
-  popupVitoria: HTMLElement | null = null;
-  popupDerrota: HTMLElement | null = null;
-  textoPopupVitoria: HTMLElement | null = null;
-  textoPopupDerrota: HTMLElement | null = null;
-  botaoPopupVitoria: HTMLElement | null = null;
-  botaoTentarNovamente: HTMLElement | null = null;
-  botaoSair: HTMLElement | null = null;
 
   ordemPlanetas: string[] = ["Mercúrio", "Vênus", "Terra", "Marte", "Júpiter", "Saturno", "Urano", "Netuno"];
   imagensPlanetas: { [key: string]: string } = {
@@ -48,14 +32,10 @@ export class SistemaSolarComponent implements AfterViewInit {
   imagemMeteoro: string = "../../../../assets/img/fases/medio/sistema-solar/meteoro.png";
   indicePlanetaAtual: number = 0;
 
-  trilhaSonora: HTMLAudioElement | null = null;
-  somVitoria: HTMLAudioElement | null = null;
-  somDerrota: HTMLAudioElement | null = null;
-
   blinkData: string[] = [];
   acao: boolean = false;
-
   primeiraPiscadaDetectada: boolean = false;
+  ultimoPlaneta: string | null = null;
 
   constructor(
     private blinkDetectionService: BlinkDetectionService,
@@ -67,122 +47,25 @@ export class SistemaSolarComponent implements AfterViewInit {
     private router: Router
   ) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.personagem = this.elementRef.nativeElement.querySelector('#personagem');
+    this.coracoes = Array.from(this.elementRef.nativeElement.querySelectorAll('.coracao'));
+    this.planetasColetados = this.elementRef.nativeElement.querySelector('#planetas-coletados');
+    this.iniciarGeracaoPlanetas();
 
-  ngAfterViewInit(): void {
-    this.initializeFaceMesh();
-  }
-
-  private initializeFaceMesh(): void {
-    this.faceMesh = new FaceMesh({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
-  
-    this.faceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-  
-    this.faceMesh.onResults(this.onResults.bind(this));
-  
-    this.camera = new Camera(this.videoElement.nativeElement, {
-      onFrame: async () => {
-        await this.faceMesh.send({ image: this.videoElement.nativeElement });
-      },
-      width: 640,
-      height: 480
-    });
-  
-    this.camera.start();
-    
-    // Check element references
-    if (isPlatformBrowser(this.platformId)) {
-      this.personagem = this.elementRef.nativeElement.querySelector('#personagem');
-      this.gameContainer = this.elementRef.nativeElement.querySelector('#game-container');
-      this.coracoes = Array.from(this.elementRef.nativeElement.querySelectorAll('.coracao'));
-      this.vidas = this.coracoes.length;
-      this.planetasColetados = this.elementRef.nativeElement.querySelector('#planetas-coletados');
-      this.popupVitoria = this.elementRef.nativeElement.querySelector('#popup-vitoria');
-      this.popupDerrota = this.elementRef.nativeElement.querySelector('#popup-derrota');
-      this.textoPopupVitoria = this.elementRef.nativeElement.querySelector('#texto-popup-vitoria');
-      this.textoPopupDerrota = this.elementRef.nativeElement.querySelector('#texto-popup-derrota');
-      this.botaoPopupVitoria = this.elementRef.nativeElement.querySelector('#botao-popup-vitoria');
-      this.botaoTentarNovamente = this.elementRef.nativeElement.querySelector('#botao-tentar-novamente');
-      this.botaoSair = this.elementRef.nativeElement.querySelector('#botao-sair');
-  
-      if (this.route.snapshot.paramMap.get('tipo') == 'teclado') {
-        this.iniciarGeracaoPlanetas();
+    this.blinkDetectionService.blinkDetected.subscribe(() => {
+      if (!this.acao) {
+        this.subir();
+        this.acao = true;
+      } else {
+        this.descer();
+        this.acao = false;
       }
-  
-      this.botaoPopupVitoria?.addEventListener('click', () => this.hidePopup());
-      this.botaoTentarNovamente?.addEventListener('click', () => this.hidePopup());
-      this.botaoSair?.addEventListener('click', () => this.goToHome());
-    }
+    });
   }
-  
-  private onResults(results: any): void {
-    if (!this.canvasElement || !this.canvasElement.nativeElement) {
-      console.error("Canvas element is not initialized.");
-      return;
-    }
-  
-    const canvasCtx = this.canvasElement.nativeElement.getContext('2d');
-    canvasCtx.save();
-    canvasCtx.clearRect(0, 0, this.canvasElement.nativeElement.width, this.canvasElement.nativeElement.height);
-  
-    // Draw the video image on the canvas
-    canvasCtx.drawImage(
-      results.image,
-      0,
-      0,
-      this.canvasElement.nativeElement.width,
-      this.canvasElement.nativeElement.height
-    );
-  
-    if (results.multiFaceLandmarks) {
-      for (const landmarks of results.multiFaceLandmarks) {
-        const leftEyeTop = landmarks[159];
-        const leftEyeBottom = landmarks[145];
-  
-        const leftEyeTopY = leftEyeTop.y * this.canvasElement.nativeElement.height;
-        const leftEyeBottomY = leftEyeBottom.y * this.canvasElement.nativeElement.height;
-        const currentEyeHeight = leftEyeBottomY - leftEyeTopY;
-  
-        this.blinkDetectionService.registerEyeHeight(currentEyeHeight);
-        const blinkDetected = this.blinkDetectionService.detectBlink(currentEyeHeight);
-        if (blinkDetected) {
-          if (!this.acao) {
-            this.subir();
-            this.acao = true;
-  
-            if (!this.primeiraPiscadaDetectada) {
-              this.primeiraPiscadaDetectada = true;
-              this.iniciarGeracaoPlanetas();
-            }
-          } else {
-            this.descer();
-            this.acao = false;
-          }
-        }
-  
-        // Draw a line on the left eye
-        canvasCtx.beginPath();
-        canvasCtx.moveTo(leftEyeTop.x * this.canvasElement.nativeElement.width, leftEyeTopY);
-        canvasCtx.lineTo(leftEyeBottom.x * this.canvasElement.nativeElement.width, leftEyeBottomY);
-        canvasCtx.strokeStyle = 'red';
-        canvasCtx.lineWidth = 2;
-        canvasCtx.stroke();
-      }
-    }
-  
-    canvasCtx.restore();
-  }
-  
 
   iniciarGeracaoPlanetas(): void {
-    setInterval(() => this.criarPlaneta(), 2000);
+    setInterval(() => this.criarPlaneta(), 3000);
     setInterval(() => this.criarMeteoro(), 5000);
   }
 
@@ -211,12 +94,10 @@ export class SistemaSolarComponent implements AfterViewInit {
 
   animatePersonagem(targetPosition: string): void {
     if (this.personagem) {
-      this.renderer.setStyle(this.personagem, 'transition', 'bottom 2s');
+      this.renderer.setStyle(this.personagem, 'transition', 'bottom 0.7s');
       this.renderer.setStyle(this.personagem, 'bottom', targetPosition);
     }
   }
-
-  private ultimoPlaneta: string | null = null;
 
   criarPlaneta(): void {
     const planetasRestantes = this.ordemPlanetas.slice(this.indicePlanetaAtual);
@@ -243,30 +124,29 @@ export class SistemaSolarComponent implements AfterViewInit {
     this.renderer.setStyle(planeta, 'backgroundImage', `url(${this.imagensPlanetas[nomePlaneta]})`);
     this.renderer.setAttribute(planeta, 'data-name', nomePlaneta);
     this.renderer.setStyle(planeta, 'bottom', `${500 + Math.random() * 80}px`);
-    this.renderer.appendChild(this.gameContainer!, planeta);
+    
+    this.renderer.appendChild(this.gameContainer.nativeElement, planeta);
     this.moverPlaneta(planeta);
   }
 
   moverPlaneta(planeta: HTMLElement): void {
-    let intervaloPlaneta = setInterval(() => {
+    const mover = () => {
       let planetaRight = parseInt(getComputedStyle(planeta).right);
+      if (planetaRight >= window.innerWidth) {
+        planeta.remove();
+      } else {
+        planeta.style.right = (planetaRight + 5) + 'px';
+        requestAnimationFrame(mover);
+      }
+
       let personagemBottom = parseInt(getComputedStyle(this.personagem!).bottom);
-      let personagemLeft = parseInt(getComputedStyle(this.personagem!).left);
-      let personagemRight = personagemLeft + this.personagem!.offsetWidth;
       let planetaLeft = window.innerWidth - planetaRight - 50;
       let planetaTop = parseInt(getComputedStyle(planeta).bottom);
       let planetaBottom = planetaTop + planeta.offsetHeight;
 
-      if (planetaRight >= window.innerWidth) {
-        planeta.remove();
-        clearInterval(intervaloPlaneta);
-      } else {
-        planeta.style.right = planetaRight + 5 + 'px';
-      }
-
       if (
-        planetaLeft < personagemLeft &&
-        planetaLeft + planeta.offsetWidth > personagemLeft &&
+        planetaLeft < parseInt(getComputedStyle(this.personagem!).left) &&
+        planetaLeft + planeta.offsetWidth > parseInt(getComputedStyle(this.personagem!).left) &&
         personagemBottom < planetaBottom &&
         personagemBottom + this.personagem!.offsetHeight > planetaTop
       ) {
@@ -283,9 +163,9 @@ export class SistemaSolarComponent implements AfterViewInit {
           this.perderVida();
         }
         planeta.remove();
-        clearInterval(intervaloPlaneta);
       }
-    }, 20);
+    };
+    mover();
   }
 
   criarMeteoro(): void {
@@ -294,23 +174,24 @@ export class SistemaSolarComponent implements AfterViewInit {
     this.renderer.setStyle(meteoro, 'backgroundImage', `url(${this.imagemMeteoro})`);
     this.renderer.setStyle(meteoro, 'bottom', '60px');
     this.renderer.setStyle(meteoro, 'right', '-90px');
-    this.renderer.appendChild(this.gameContainer!, meteoro);
+
+    this.renderer.appendChild(this.gameContainer.nativeElement, meteoro);
     this.moverMeteoro(meteoro);
   }
 
   moverMeteoro(meteoro: HTMLElement): void {
-    let intervaloMeteoro = setInterval(() => {
+    const mover = () => {
       let meteoroRight = parseInt(getComputedStyle(meteoro).right);
+      if (meteoroRight >= window.innerWidth) {
+        meteoro.remove();
+      } else {
+        meteoro.style.right = (meteoroRight + 5) + 'px';
+        requestAnimationFrame(mover);
+      }
+
       let personagemBottom = parseInt(getComputedStyle(this.personagem!).bottom);
       let personagemLeft = parseInt(getComputedStyle(this.personagem!).left);
       let meteoroLeft = window.innerWidth - meteoroRight - 50;
-
-      if (meteoroRight >= window.innerWidth) {
-        meteoro.remove();
-        clearInterval(intervaloMeteoro);
-      } else {
-        meteoro.style.right = meteoroRight + 5 + 'px';
-      }
 
       if (
         meteoroLeft < personagemLeft + this.personagem!.offsetWidth &&
@@ -319,9 +200,9 @@ export class SistemaSolarComponent implements AfterViewInit {
       ) {
         this.perderVida();
         meteoro.remove();
-        clearInterval(intervaloMeteoro);
       }
-    }, 20);
+    };
+    mover();
   }
 
   perderVida(): void {
@@ -335,28 +216,18 @@ export class SistemaSolarComponent implements AfterViewInit {
   }
 
   regenerarVida(): void {
-    if (this.vidas < 3) {
+    if (this.vidas < 5) {
       this.coracoes[this.vidas].style.display = 'inline-block';
       this.vidas++;
     }
   }
 
   showPopup(status: 'win' | 'lose', message: string): void {
-    if (status === 'win') {
-      this.textoPopupVitoria!.textContent = message;
-      this.popupVitoria!.style.display = 'block';
-      this.somVitoria?.play();
-    } else {
-      this.textoPopupDerrota!.textContent = message;
-      this.popupDerrota!.style.display = 'block';
-    }
-    this.trilhaSonora?.pause();
+    // Implemente lógica para mostrar popup
   }
 
   hidePopup(): void {
-    this.popupVitoria!.style.display = 'none';
-    this.popupDerrota!.style.display = 'none';
-    this.resetGame();
+    // Implemente lógica para esconder popup
   }
 
   goToHome(): void {
@@ -368,6 +239,5 @@ export class SistemaSolarComponent implements AfterViewInit {
     this.coracoes.forEach(coracao => coracao.style.display = 'inline-block');
     this.indicePlanetaAtual = 0;
     this.planetasColetados!.innerHTML = '';
-    this.trilhaSonora?.play();
   }
 }

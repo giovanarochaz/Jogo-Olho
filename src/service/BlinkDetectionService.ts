@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, EventEmitter } from '@angular/core';
 
 @Injectable({
   providedIn: 'root'
@@ -6,6 +6,9 @@ import { Injectable } from '@angular/core';
 export class BlinkDetectionService {
   private fixedEyeHeight!: number;
   private blinkRegistered = false;
+
+  // Create an EventEmitter to notify about blinks
+  public blinkDetected = new EventEmitter<void>();
 
   constructor() { }
 
@@ -21,7 +24,8 @@ export class BlinkDetectionService {
   public detectBlink(currentEyeHeight: number): boolean {
     if (currentEyeHeight < this.fixedEyeHeight && !this.blinkRegistered) {
       this.blinkRegistered = true; // Registrar piscada
-      console.log('pisquei');
+      console.log('Pisquei');
+      this.blinkDetected.emit(); // Emitir evento de piscada
       return true; // Retorna verdadeiro indicando que piscou
     }
 
