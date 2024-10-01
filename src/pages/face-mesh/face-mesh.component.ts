@@ -41,12 +41,13 @@ export class FaceMeshComponent implements OnInit, AfterViewInit {
   private async initializeFaceMesh(): Promise<void> {
     const { FaceMesh } = await import('@mediapipe/face_mesh');
 
+    console.log('FaceMesh',FaceMesh);
+
     this.faceMesh = new FaceMesh({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
     });
 
     console.log('teste',this.faceMesh);
-
 
     this.faceMesh.setOptions({
       maxNumFaces: 1,
